@@ -4,12 +4,11 @@ import com.rebiekong.bdt.fly.ResponseData;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.text.ParseException;
 
 @RestController
 public class DataController {
@@ -88,6 +87,7 @@ public class DataController {
      */
     @GetMapping(path = "/data/project/names")
     @ApiOperation("项目名清单")
+    @Cacheable(cacheNames = "data-item-names")
     public ResponseData n0() {
         return new ResponseData(jdbcTemplate.queryForList("SELECT project,avg(queue_wait) AS waiting FROM default.disney GROUP BY project HAVING waiting > 0 ORDER BY waiting DESC"));
     }

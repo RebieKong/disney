@@ -4,6 +4,7 @@ import com.rebiekong.bdt.fly.ResponseData;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,11 +29,12 @@ public class Data2018Controller {
      */
     @ApiOperation("单项目每小时每月分布")
     @GetMapping(path = "/project/date-hour/avg")
+    @Cacheable(cacheNames = "p0")
     public ResponseData p0(@ApiParam(name = "project", value = "项目名", example = "雷鸣山漂流") @RequestParam(name = "project", required = false) String project) {
         if (project.equals("")) {
-            return new ResponseData(jdbcTemplate.queryForList("SELECT  day_of_month,hour_of_day,avg(queue_wait) as delay FROM disney_2018 WHERE project<>'' AND project IS NOT NULL GROUP BY day_of_month,hour_of_day"));
+            return new ResponseData(jdbcTemplate.queryForList("SELECT  day_of_month,hour_of_day,floor(avg(queue_wait)) as delay FROM disney_2018 WHERE project<>'' AND project IS NOT NULL GROUP BY day_of_month,hour_of_day"));
         } else {
-            return new ResponseData(jdbcTemplate.queryForList("SELECT  day_of_month,hour_of_day,avg(queue_wait) as delay FROM disney_2018 WHERE project=? GROUP BY day_of_month,hour_of_day", project));
+            return new ResponseData(jdbcTemplate.queryForList("SELECT  day_of_month,hour_of_day,floor(avg(queue_wait)) as delay FROM disney_2018 WHERE project=? GROUP BY day_of_month,hour_of_day", project));
         }
     }
 
@@ -44,6 +46,7 @@ public class Data2018Controller {
      */
     @ApiOperation("单项目每小时一星期七天分布")
     @GetMapping(path = "/project/week-hour/avg")
+    @Cacheable(cacheNames = "p1")
     public ResponseData p1(@ApiParam(name = "project", value = "项目名", example = "雷鸣山漂流") @RequestParam(name = "project", required = false) String project) {
         if (project.equals("")) {
             return new ResponseData(jdbcTemplate.queryForList("SELECT  day_of_week,hour_of_day,floor(avg(queue_wait)) as delay FROM disney_2018 GROUP BY day_of_week,hour_of_day"));
@@ -60,6 +63,7 @@ public class Data2018Controller {
      */
     @ApiOperation("单项目每小时各月份分布")
     @GetMapping(path = "/project/month-hour/avg")
+    @Cacheable(cacheNames = "p2")
     public ResponseData p2(@ApiParam(name = "project", value = "项目名", example = "雷鸣山漂流") @RequestParam(name = "project", required = false) String project) {
         if (project.equals("")) {
             return new ResponseData(jdbcTemplate.queryForList("SELECT  month_of_year,hour_of_day,floor(avg(queue_wait)) as delay FROM disney_2018 GROUP BY month_of_year,hour_of_day"));
@@ -76,6 +80,7 @@ public class Data2018Controller {
      */
     @ApiOperation("单项目每日各月份分布")
     @GetMapping(path = "/project/month-date/avg")
+    @Cacheable(cacheNames = "p3")
     public ResponseData p3(@ApiParam(name = "project", value = "项目名", example = "雷鸣山漂流") @RequestParam(name = "project", required = false) String project) {
         if (project.equals("")) {
             return new ResponseData(jdbcTemplate.queryForList("SELECT  month_of_year,day_of_month,floor(avg(queue_wait)) as delay FROM disney_2018 GROUP BY month_of_year,day_of_month"));
@@ -92,6 +97,7 @@ public class Data2018Controller {
      */
     @ApiOperation("单项目所有时间分布")
     @GetMapping(path = "/project/day/avg")
+    @Cacheable(cacheNames = "p4")
     public ResponseData p4(@ApiParam(name = "project", value = "项目名", example = "雷鸣山漂流") @RequestParam(name = "project", required = false) String project) {
         if (project.equals("")) {
             return new ResponseData(jdbcTemplate.queryForList("SELECT date,floor(avg(queue_wait)) as delay FROM disney_2018 GROUP BY date"));
@@ -108,6 +114,7 @@ public class Data2018Controller {
      */
     @ApiOperation("单项目所有时间分布")
     @GetMapping(path = "/project/day/w-avg")
+    @Cacheable(cacheNames = "p5")
     public ResponseData p5(@ApiParam(name = "project", value = "项目名", example = "雷鸣山漂流") @RequestParam(name = "project", required = false) String project) {
         if (project.equals("")) {
             return new ResponseData(jdbcTemplate.queryForList("SELECT  min(date) as date,floor(avg(queue_wait)) as delay FROM disney_2018 GROUP BY week_of_year ORDER BY date ASC"));
@@ -121,6 +128,7 @@ public class Data2018Controller {
      *
      * @return 数据
      */
+    @Cacheable(cacheNames = "p6")
     @ApiOperation("所有项目所有时间分布")
     @GetMapping(path = "/all/day/w-avg")
     public ResponseData p6() {
