@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en" style="height:100%;">
+<head>
+    <meta charset="UTF-8">
+    <title>上海迪士尼数据分析 - 单项目聚合分析</title>
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- HTML5 shim 和 Respond.js 是为了让 IE8 支持 HTML5 元素和媒体查询（media queries）功能 -->
+    <!-- 警告：通过 file:// 协议（就是直接将 html 页面拖拽到浏览器中）访问页面时 Respond.js 不起作用 -->
+    <!--[if lt IE 9]>
+    <script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/respond.js@1.4.2/dest/respond.min.js"></script>
+    <![endif]-->
+    <!-- jQuery (Bootstrap 的所有 JavaScript 插件都依赖 jQuery，所以必须放在前边) -->
+    <script src="https://cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js"></script>
+    <!-- 加载 Bootstrap 的所有 JavaScript 插件。你也可以根据需要只加载单个插件。 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/js/bootstrap.min.js"></script>
+    <script src="https://echarts.baidu.com/dist/echarts.min.js"></script>
+</head>
+<body style="height:100%;">
+<!-- 为ECharts准备一个具备大小（宽高）的Dom -->
+<div id="main" style="width: 100%;height:100%; position:absolute;left: 0;top: 0;;z-index: 80"></div>
+<div style="position:absolute;left:20px;top:65%;z-index: 100;width: 300px">
+    <label>
+        项目：
+        <select id="project-selector" class="form-control mod" style="z-index: inherit">
+            <option value="翱翔•飞越地平线" selected>翱翔•飞越地平线</option>
+        </select>
+    </label>
+</div>
+<div style="position:absolute;left:320px;top:65%;z-index: 100;width: 300px">
+    <label>
+        Y轴：
+        <select id="date-y" class="form-control mod" style="z-index: inherit">
+            <option value="day_of_week" selected>按工作日分组</option>
+            <option value="month_of_year">按月分组</option>
+            <option value="day_of_month">按日分组</option>
+        </select>
+    </label>
+</div>
+<div style="position:absolute;left:620px;top:65%;z-index: 100;width: 300px">
+    <label>
+        X轴：
+        <select id="date-x" class="form-control mod" style="z-index: inherit">
+            <option value="hour_of_day" selected>按小时分组</option>
+        </select>
+    </label>
+</div>
+
+<script type="text/javascript">
+    $("#date-y").on("change", function (t) {
+            let yAxis = t.currentTarget.value;
+            let k = "";
+            switch (yAxis) {
+                case "day_of_week": {
+                    k += ' <option value="hour_of_day" selected>按小时分组</option>';
+                    break;
+                }
+                case "month_of_year": {
+                    k += ' <option value="hour_of_day" selected>按小时分组</option>';
+                    k += ' <option value="day_of_month">按天分组</option>';
+                    break;
+                }
+                case "day_of_month": {
+                    k += ' <option value="hour_of_day" selected>按小时分组</option>';
+                    break;
+                }
+            }
+            $("#date-x").html(k)
+        }
+    );
+    $.ajax({
+            url: "/data/project/names",
+            dataType: 'json',
+            success: function (res) {
+                let k = "";
+                for (let i = 0; i < res.data.length; i++) {
+                    const p = res.data[i];
+                    if (i === 0) {
+                        k += "<option value='" + p.project + "' selected>" + p.project + "</option>"
+                    } else {
+                        k += "<option value='" + p.project + "'>" + p.project + "</option>"
+                    }
+                }
+                $("#project-selector").html(k)
+            }
+        }
+    );
+
+    // 基于准备好的dom，初始化echarts实例
+
+    var myChart = echarts.init(document.getElementById('main'));
+    $(".mod").on("change",updateData);
+    updateData();
+
+    function updateData() {
+        const dayOfWeekAxisLabel = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+        const dayOfMonthAxisLabel = ["1日", "2日", "3日", "4日", "5日", "6日", "7日", "8日", "9日", "10日", "11日", "12日", "13日", "14日", "15日", "16日", "17日", "18日", "19日", "20日", "21日", "22日", "23日", "24日", "25日", "26日", "27日", "28日", "29日", "30日", "31日"];
+        const monthOfYearAxisLabel = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
+        const hourOfDayAxisLabel = [
+            '8点', '9点', '10点', '11点',
+            '12点', '13点', '14点', '15点', '16点', '17点',
+            '18点', '19点', '20点'
+        ];
+        const project = $("#project-selector").val();
+        const xData = $("#date-x").val();
+        const yData = $("#date-y").val();
+        let yAxisLabel = [];
+        let xAxisLabel = [];
+        let parseData = function (data) {
+            return data.filter(function (item) {
+                return item['hour_of_day'] >= 8 && item['hour_of_day'] <= 20;
+            }).map(function (item) {
+                return [item['hour_of_day'] - 8, item['day_of_week'] - 1, Math.floor(item['delay']) || '-'];
+            });
+        };
+        let url = "";
+        switch (yData) {
+            case "day_of_week": {
+                yAxisLabel = dayOfWeekAxisLabel;
+                switch (xData) {
+                    case "hour_of_day": {
+                        // 星期几 小时
+                        url = "/data/2018/project/week-hour/avg";
+                        parseData = function (data) {
+                            return data.filter(function (item) {
+                                return item['hour_of_day'] >= 8 && item['hour_of_day'] <= 20;
+                            }).map(function (item) {
+                                return [item['hour_of_day'] - 8, item['day_of_week'] - 1, Math.floor(item['delay']) || '-'];
+                            });
+                        };
+                        xAxisLabel = hourOfDayAxisLabel;
+                        break;
+                    }
+                }
+                break;
+            }
+            case "month_of_year": {
+                yAxisLabel = monthOfYearAxisLabel;
+                switch (xData) {
+                    case "hour_of_day": {
+                        // 月份 小时
+                        url = "/data/2018/project/month-hour/avg";
+                        parseData = function (data) {
+                            return data.filter(function (item) {
+                                return item['hour_of_day'] >= 8 && item['hour_of_day'] <= 20;
+                            }).map(function (item) {
+                                return [item['hour_of_day'] - 8, item['month_of_year'] - 1, Math.floor(item['delay']) || '-'];
+                            });
+                        };
+                        xAxisLabel = hourOfDayAxisLabel;
+                        break;
+                    }
+                    case "day_of_month": {
+                        // 月份 小时
+                        url = "/data/2018/project/month-date/avg";
+                        parseData = function (data) {
+                            return data.map(function (item) {
+                                return [item['day_of_month'] - 1, item['month_of_year'] - 1, Math.floor(item['delay']) || '-'];
+                            });
+                        };
+                        xAxisLabel = dayOfMonthAxisLabel;
+                        break;
+                    }
+                }
+                break;
+            }
+            case "day_of_month": {
+                yAxisLabel = dayOfMonthAxisLabel;
+
+                switch (xData) {
+                    case "hour_of_day": {
+                        // 月份 小时
+                        url = "/data/2018/project/date-hour/avg";
+                        parseData = function (data) {
+                            return data.filter(function (item) {
+                                return item['hour_of_day'] >= 8 && item['hour_of_day'] <= 20;
+                            }).map(function (item) {
+                                return [item['hour_of_day'] - 8, item['day_of_month'] - 1, Math.floor(item['delay']) || '-'];
+                            });
+                        };
+                        xAxisLabel = hourOfDayAxisLabel;
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+
+
+        $.ajax({
+            url: url,
+            data: {
+                project: project
+            },
+            dataType: 'json',
+            success: function (res) {
+                var data = res.data;
+
+
+                data = parseData(data);
+                var max = 0;
+                var min = 1000000;
+                for (var i = 0; i < data.length; i++) {
+                    if (data[i][2] > max) {
+                        max = data[i][2];
+                    }
+                    if (data[i][2] < min) {
+                        min = data[i][2];
+                    }
+                }
+                option = {
+                    backgroundColor: '#404a59',
+                    title: {
+                        top: 30,
+                        text: '[' + project + ']平均排队时长(分钟)',
+                        subtext: '数据源自迪士尼APP，【数据仅包含2018年】',
+                        left: 'center',
+                        textStyle: {
+                            color: '#fff'
+                        }
+                    },
+                    tooltip: {
+                        position: 'top',
+                        formatter: function (params) {
+                            return yAxisLabel[params.data[1]] + params.name + "平均值：" + params.data[2]
+                        }
+                    },
+                    animation: false,
+                    grid: {
+                        height: '50%',
+                        y: '10%'
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: xAxisLabel,
+                        splitArea: {
+                            show: true
+                        },
+                        axisLine: {
+                            color: '#fff'
+                        },
+                        axisLabel: {
+                            color: '#fff'
+                        }
+                    },
+                    yAxis: {
+                        type: 'category',
+                        data: yAxisLabel,
+                        splitArea: {
+                            show: true
+                        },
+                        axisLine: {
+                            color: '#fff'
+                        },
+                        axisLabel: {
+                            color: '#fff'
+                        }
+                    },
+                    visualMap: {
+                        min: min,
+                        max: max,
+                        calculable: true,
+                        orient: 'horizontal',
+                        left: 'center',
+                        bottom: '15%'
+                    },
+                    series: [{
+                        name: '平均值',
+                        type: 'heatmap',
+                        data: data,
+                        label: {
+                            normal: {
+                                show: true
+                            }
+                        },
+                        itemStyle: {
+                            emphasis: {
+                                shadowBlur: 10,
+                                shadowColor: 'rgba(0, 0, 0, 0.5)'
+                            }
+                        }
+                    }]
+                };
+
+                // 使用刚指定的配置项和数据显示图表。
+                myChart.setOption(option);
+            }
+        })
+    }
+</script>
+</body>
+</html>
